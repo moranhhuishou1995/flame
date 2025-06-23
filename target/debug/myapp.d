@@ -1,0 +1,1 @@
+/home/zj/wangqi/flame/target/debug/myapp: /home/zj/wangqi/flame/src/collector.rs /home/zj/wangqi/flame/src/command.rs /home/zj/wangqi/flame/src/draw_flame.rs /home/zj/wangqi/flame/src/main.rs /home/zj/wangqi/flame/src/process.rs

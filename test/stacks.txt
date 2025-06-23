@@ -1,0 +1,4 @@
+main; func1; func2; 1
+main; func1; func2; 1
+main; func1; func3; 1
+main; func1; func2; 1
