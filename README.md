@@ -68,7 +68,7 @@ cargo build
 ./myapp draw -i /home/zj/wangqi/flame/output_20250623/merged_stack/merged_output.txt -o /home/zj/wangqi/flame/output_20250623/flame_svg
 ```
 
-## 0x04 Output文件说明
+## Output文件说明
 
 - `urls.json` 为各个节点的url配置文件;
 - `merged_output.json` 为从各节点拉取的;
