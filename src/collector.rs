@@ -50,7 +50,7 @@ pub async fn fetch_and_save_urls(urls: Vec<String>) -> Result<(), Box<dyn std::e
     // Get the current timestamp
     let timestamp = Local::now().format("%Y%m%d%H%M%S").to_string();
     // Build the output file path
-    let output_path = output_dir.join(format!("urlstack_{}.json", timestamp));
+    let output_path = output_dir.join(format!("stacktrace_{}.json", timestamp));
 
     let mut file = File::create(output_path.clone())?;
     file.write_all(output.as_bytes())?;

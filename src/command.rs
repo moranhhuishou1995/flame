@@ -103,7 +103,7 @@ pub async fn run_cli() -> Result<(), Box<dyn Error>> {
             let urls: Vec<String> = from_str(&contents)?;
 
             fetch_and_save_urls(urls).await?;
-            println!("Call stacks have been collected and saved to output.json");
+            println!("Call stacks have been collected and saved successfully");
         }
         SubCommands::Process { input, output } => {
             process_and_merge_callstacks(&input,  output.as_deref())?;
