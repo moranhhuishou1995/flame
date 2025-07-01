@@ -5,7 +5,6 @@ mod collector;
 mod process;
 mod draw_flame;
 mod command;
-mod config_rankpid;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -28,49 +28,50 @@ cargo build
 
 ## 5. 使用方式
 
-### 5.1 配置url
+### 5.1 获取个节点堆栈的txt数据
 
 在url_config文件夹下的urls.json文件中，配置各个节点需要拉取的堆栈信息的url地址
-
-### 5.2 获取个节点堆栈的json数据
 
 执行以下命令:
 
 ```bash
-./mapp fetch -f /home/zj/wangqi/flame/url_config/urls.json
+./probing-flame -f ~/flame/url_config/urls.json
 ```
-
-### 5.3 合并及处理json数据
-
-执行以下命令合并处理json数据，-i参数文件需要为json格式数据, 是必须传入的参数:
+执行成功后，会在相应文件加生成合并后的堆栈txt文件，也可通过-o参数指定堆栈txt文件的生成目录
 
 ```bash
-./myapp process -i /home/zj/wangqi/flame/output_20250623/url_stack/merged_output.json
+./probing-flame -f ~/flame/url_config/urls.json -o ~/you_want_to_save
 ```
 
-也可以通过-o参数指定处理后的文件的输出路径:
+![alt text](pics/image.png)
+
+### 5.2 获取指定节点堆栈的txt数据
+
+无需配置urls.json文件，直接通过-r参数指定需要获取的rank编号的堆栈信息
 
 ```bash
-./myapp process -i /home/zj/wangqi/flame/output_20250623/url_stack/merged_output.json -o /home/zj/wangqi/flame/output_20250623/merged_stack/
+./probing-flame -r 2:10.107.204.71:11492 -r 3:10.107.204.71:11493
 ```
+![alt text](pics/image-1.png)
 
-### 5.4 生成火焰图
+### 5.3 生成火焰图
 
 执行以下命令生成堆栈火焰图, -i参数为合并后的堆栈信息文件，是必须传入的参数:
 
 ```bash
-./myapp draw -i /home/zj/wangqi/flame/output_20250623/merged_stack/merged_output.txt
+./probing-flame -i /home/zj/wangqi/flame/output_20250623/merged_stack/merged_output.txt
 ```
 
 也可以通过-o参数指定输出的火焰图文件路径:
 
 ```bash
-./myapp draw -i /home/zj/wangqi/flame/output_20250623/merged_stack/merged_output.txt -o /home/zj/wangqi/flame/output_20250623/flame_svg
+./probing-flame -i /home/zj/wangqi/flame/output_20250623/merged_stack/merged_output.txt -o ~/you_want_to_save
 ```
+
+![alt text](pics/image-2.png)
 
 ## 6. Output文件说明
 
 - `urls.json` 为各个节点的url配置文件;
-- `merged_output.json` 为从各节点拉取的;
 - `merged_output.txt` 为合并后的堆栈信息;
 - `merged_output.svg` 为生成的火焰图;

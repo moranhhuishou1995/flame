@@ -7,8 +7,6 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use crate::config_rankpid::{ProcessRankApi, ProcessRankError};
-
 /// 主命令结构体
 #[derive(Parser, Debug)]
 #[command(
@@ -49,17 +47,6 @@ struct Cli {
         help = "Path to the file containing a JSON array of URLs."
     )]
     fetch_file: Option<String>,
-
-    /// 调用 config_rankpid.rs 中的 get_configure_and_write 函数
-    #[arg(
-        short = 'c',
-        long = "configure",
-        num_args = 0..1, // 修改为 0 到 1 个参数
-        value_name = "BASE_PORT",
-        group = "action",
-        help = "Call get_configure_and_write function in config_rankpid.rs. Optional base port. If not provided, default to 12345. The JSON file will be saved to the output directory specified by -o."
-    )]
-    configure: Option<Option<u16>>, // 修改为 Option<Option<u16>>
 
     #[arg(
         short = 'r',
@@ -160,31 +147,24 @@ async fn fetch_selected_rankstacks(ranks: Vec<String>, output: Option<&str>) -> 
 pub async fn run_cli() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
-    match (cli.draw_input, cli.fetch_file, cli.configure, !cli.ranks.is_empty()) {
-        (Some(input), _, _, _) => {
+    match (cli.draw_input, cli.fetch_file, !cli.ranks.is_empty()) {
+        (Some(input), _, _) => {
             draw_frame_graph(&input, cli.output.as_deref());
             println!("Frame graph has been drawn successfully");
         }
-        (_, Some(file), _, false) => {
+        (_, Some(file), false) => {
             // 仅使用 -f 参数，原有从文件读取 URL 的逻辑
             fetch_process_and_merge(&file, cli.output.as_deref()).await?;
             println!("Call stacks have been collected, processed, and merged successfully");
         }
-        (_, _, _, true) => {
+        (_, _, true) => {
             // 仅使用 -r 参数
             fetch_selected_rankstacks(cli.ranks, cli.output.as_deref()).await?;
             println!("Call stacks have been collected, processed, and merged successfully");
         }
-        (_, _, Some(base_port), _) => {
-            let json_path = cli.output.as_deref().map(|output| PathBuf::from(output).join("rank_ports.json"));
-            match ProcessRankApi::get_configure_and_write(base_port, json_path.as_deref()) {
-                Ok(()) => println!("Successfully configured ranks and wrote to JSON file."),
-                Err(e) => eprintln!("Error configuring ranks: {}", e),
-            }
-        }
         _ => {
             // 如果没有提供任何选项，显示帮助信息
-            eprintln!("Error: You must specify either -i/--input, -f/--file, -c/--configure or -r/--rank option.");
+            eprintln!("Error: You must specify either -i/--input, -f/--file, or -r/--rank option.");
             eprintln!("Run `flame --help` for usage information.");
             std::process::exit(1);
         }
