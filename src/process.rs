@@ -1,11 +1,16 @@
+use chrono::Local;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeSet}; // 新增 BTreeSet 导入
+use std::error::Error;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read, Write};
+use std::io::{Read, Write};
 use serde_json;
 use std::path::PathBuf;
-use chrono::Local;
 use std::env;
+
+use reqwest;
+use serde_json::Value;
+use futures::future::join_all; 
 
 /// Represents a frame in the call stack, which can be either a C frame or a Python frame.
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -37,7 +42,7 @@ struct PyFrame {
 pub struct TrieNode {
     children: HashMap<String, TrieNode>,
     is_end_of_stack: bool,
-    ranks: Vec<u32>,
+    ranks: BTreeSet<u32>, // 使用BTreeSet确保唯一性和有序性
 }
 
 impl TrieNode {
@@ -45,77 +50,90 @@ impl TrieNode {
         TrieNode {
             children: HashMap::new(),
             is_end_of_stack: false,
-            ranks: Vec::new(),
+            ranks: BTreeSet::new(),
         }
     }
 
     fn add_rank(&mut self, rank: u32) {
-        self.ranks.push(rank);
+        self.ranks.insert(rank); // 自动去重
     }
 }
 
 /// Represents a Trie structure for merging stack traces.
 pub struct StackTrie {
     pub root: TrieNode,
-    all_ranks: Vec<u32>,
+    all_ranks: BTreeSet<u32>, // 使用BTreeSet确保唯一性和有序性
 }
 
 impl StackTrie {
     fn new(all_ranks: Vec<u32>) -> Self {
+        // 将all_ranks转换为BTreeSet确保唯一性和有序性
+        let all_ranks_set: BTreeSet<_> = all_ranks.into_iter().collect();
+        
         StackTrie {
             root: TrieNode::new(),
-            all_ranks,
+            all_ranks: all_ranks_set,
         }
     }
 
     fn insert(&mut self, stack: Vec<&str>, rank: u32) {
         let mut node = &mut self.root;
         for frame in stack {
+            // 跳过包含"lto_priv"的帧，与Python实现保持一致
+            if frame.contains("lto_priv") {
+                break;
+            }
+            
             node = node.children.entry(frame.to_string()).or_insert_with(TrieNode::new);
             node.add_rank(rank);
         }
         node.is_end_of_stack = true;
-        node.add_rank(rank);
+        node.add_rank(rank); // 保留这行，与Python实现一致
     }
 
-    fn format_rank_str(&self, ranks: &[u32]) -> String {
-        let mut ranks = ranks.to_vec();
-        ranks.sort_unstable();
-        let mut leak_ranks: Vec<u32> = self.all_ranks.iter().copied().filter(|r| !ranks.contains(r)).collect();
-        leak_ranks.sort_unstable();
+    fn format_rank_str(&self, ranks: &BTreeSet<u32>) -> String {
+        // 转换为有序向量
+        let ranks_vec: Vec<_> = ranks.iter().cloned().collect();
+        
+        // 计算leak_ranks，使用集合操作确保正确性
+        let leak_ranks: Vec<_> = self.all_ranks
+            .difference(ranks)
+            .cloned()
+            .collect();
 
         fn inner_format(ranks: &[u32]) -> String {
-            let mut str_buf = String::new();
-            let mut low = 0;
-            let mut high = 0;
-            if ranks.len() == 0 {
-                return str_buf;
+            if ranks.is_empty() {
+                return String::new();
             }
-            while high < ranks.len() - 1 {
-                let low_value = ranks[low];
-                let mut high_value = ranks[high];
-                while high < ranks.len() - 1 && high_value + 1 == ranks[high + 1] {
-                    high += 1;
-                    high_value = ranks[high];
+
+            let mut ranges = Vec::new();
+            let mut i = 0;
+            let n = ranks.len();
+            
+            while i < n {
+                let start = ranks[i];
+                let mut end = start;
+                
+                // 与Python实现保持一致的区间合并逻辑
+                while i + 1 < n && ranks[i + 1] == end + 1 {
+                    end = ranks[i + 1];
+                    i += 1;
                 }
-                low = high + 1;
-                high += 1;
-                if low_value != high_value {
-                    str_buf.push_str(&format!("{}-{}", low_value, high_value));
+                
+                let range_str = if start == end {
+                    start.to_string()
                 } else {
-                    str_buf.push_str(&low_value.to_string());
-                }
-                if high < ranks.len() {
-                    str_buf.push('/');
-                }
+                    format!("{}-{}", start, end)
+                };
+                
+                ranges.push(range_str);
+                i += 1;
             }
-            if high == ranks.len() - 1 {
-                str_buf.push_str(&ranks[high].to_string());
-            }
-            str_buf
+            
+            ranges.join("/")
         }
 
-        let has_stack_ranks = inner_format(&ranks);
+        let has_stack_ranks = inner_format(&ranks_vec);
         let leak_stack_ranks = inner_format(&leak_ranks);
         format!("@{}|{}", has_stack_ranks, leak_stack_ranks)
     }
@@ -137,16 +155,10 @@ impl StackTrie {
     }
 }
 
-
-/// Process call stacks from a JSON file, merge them, and write the result to an output file.
-pub fn process_and_merge_callstacks(input_file: &str, output_path: Option<&str>) -> io::Result<()> {
-    // Read and parse the JSON file
-    let mut file = File::open(input_file)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-
+/// Process call stacks from a JSON string, merge them, and write the result to an output file.
+pub fn process_and_merge_callstacks(json_data: &str, rank_list: Vec<u32>, output_path: Option<&str>) -> Result<(), Box<dyn Error>> {
     // Parse the JSON data
-    let frames:  Vec<Vec<Frame>> = serde_json::from_str(&contents)?;
+    let frames:  Vec<Vec<Frame>> = serde_json::from_str(json_data)?;
 
     // Process the call stacks
     let mut out_stacks = Vec::new();
@@ -175,37 +187,41 @@ pub fn process_and_merge_callstacks(input_file: &str, output_path: Option<&str>)
         }
     }
 
-    let all_ranks: Vec<u32> = (0..prepare_stacks.len() as u32).collect();
-    let mut trie = StackTrie::new(all_ranks);
-    for (rank, stack) in prepare_stacks.iter().enumerate() {
+    // Initialize StackTrie directly using the provided rank list
+    let mut trie = StackTrie::new(rank_list.clone());
+
+    // Ensure the number of stacks does not exceed the number of ranks
+    println!("prepare stacks length {}", prepare_stacks.len());
+    println!("rank list length {}", rank_list.len());
+    if prepare_stacks.len() > rank_list.len() {
+        return Err("Number of stacks exceeds number of ranks".into());
+    }
+
+    for (index, stack) in prepare_stacks.iter().enumerate() {
         let stack_frames: Vec<&str> = stack.split(';').collect();
-        trie.insert(stack_frames, rank as u32);
+        // Use the rank value at the corresponding index in the rank list
+        let rank = rank_list[index];
+        trie.insert(stack_frames, rank);
     }
 
     // Determine the output file path
     let output_path = match output_path {
         // Use the specified output path if provided
         Some(path) => {
-            let input_file_path = PathBuf::from(input_file);
-            let file_stem = input_file_path.file_stem().and_then(std::ffi::OsStr::to_str).unwrap_or("output");
             let output_dir = PathBuf::from(path);
             // Create the output directory if it doesn't exist
             std::fs::create_dir_all(&output_dir)?;
-            output_dir.join(format!("{}.txt", file_stem))
+            let timestamp = Local::now().format("%Y%m%d%H%M%S").to_string();
+            output_dir.join(format!("stacktrace_{}.txt", timestamp))
         }
-        // Use the default output path if not provided
+        // Use the default output path in /tmp/output_xxxx/merged_stack
         None => {
-            let input_file_path = PathBuf::from(input_file);
-            // Get the parent directory of the input file
-            let input_parent_dir = input_file_path.parent().unwrap_or_else(|| std::path::Path::new("."));
-            // Get the grandparent directory of the input file
-            let grandparent_dir = input_parent_dir.parent().unwrap_or_else(|| std::path::Path::new("."));
-            let file_stem = input_file_path.file_stem().and_then(std::ffi::OsStr::to_str).unwrap_or("output");
-            // Set the output directory to the 'merged_stack' folder under the grandparent directory
-            let output_dir = grandparent_dir.join("merged_stack");
+            let date = Local::now().format("%Y%m%d").to_string();
+            let output_dir = PathBuf::from("/tmp").join(format!("output_{}", date)).join("merged_stack");
             // Create the output directory if it doesn't exist
             std::fs::create_dir_all(&output_dir)?;
-            output_dir.join(format!("{}.txt", file_stem))
+            let timestamp = Local::now().format("%Y%m%d%H%M%S").to_string();
+            output_dir.join(format!("stacktrace_{}.txt", timestamp))
         }
     };
 
@@ -221,8 +237,6 @@ pub fn process_and_merge_callstacks(input_file: &str, output_path: Option<&str>)
 
     Ok(())
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -240,8 +254,11 @@ mod tests {
 
         // Define the output directory
         let output_dir = "test";
+        // Define the rank list
+        let rank_list = vec![0, 1, 2]; 
         // Call the function to process and merge call stacks
-        process_and_merge_callstacks(input_file_path, Some(output_dir)).expect("Processing failed");
+        let json_data = fs::read_to_string(input_file_path).expect("Failed to read input file");
+        process_and_merge_callstacks(&json_data, rank_list, Some(output_dir)).expect("Processing failed");
 
         // Verify if the output file exists
         let input_path = Path::new(input_file_path);

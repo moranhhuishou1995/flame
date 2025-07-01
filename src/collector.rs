@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::env;
 
 /// Fetches JSON data from a list of URLs and saves the combined data to a file.
-pub async fn fetch_and_save_urls(urls: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn fetch_stack_from_urls(urls: Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
 
     let mut tasks = Vec::new();
@@ -23,7 +23,7 @@ pub async fn fetch_and_save_urls(urls: Vec<String>) -> Result<(), Box<dyn std::e
         });
     }
 
-    let results: Vec<Result<Value, Box<dyn std::error::Error>>> = join_all(tasks).await;
+    let results: Vec<Result<Value, Box<dyn std::error::Error>>> = futures::future::join_all(tasks).await;
 
     let mut data_list = Vec::new();
     for result in results {
@@ -35,27 +35,7 @@ pub async fn fetch_and_save_urls(urls: Vec<String>) -> Result<(), Box<dyn std::e
 
     let output = serde_json::to_string_pretty(&data_list)?;
 
-    // Get the current date
-    let date = Local::now().format("%Y%m%d").to_string();
-    // Get the project root directory
-    let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    // Build the output directory path
-    let output_dir = project_root.join(format!("output_{}", date)).join("url_stack");
+    println!("Data has been processed successfully");
 
-    // Ensure the output directory exists
-    if let Err(e) = std::fs::create_dir_all(&output_dir) {
-        panic!("Failed to create output directory: {}", e);
-    }
-
-    // Get the current timestamp
-    let timestamp = Local::now().format("%Y%m%d%H%M%S").to_string();
-    // Build the output file path
-    let output_path = output_dir.join(format!("urlstack_{}.json", timestamp));
-
-    let mut file = File::create(output_path.clone())?;
-    file.write_all(output.as_bytes())?;
-
-    println!("Data has been saved to {}", output_path.display());
-
-    Ok(())
+    Ok(output)
 }

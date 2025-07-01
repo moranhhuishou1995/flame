@@ -27,19 +27,16 @@ pub fn draw_frame_graph(file_path: &str, output_path: Option<&str>) {
         .and_then(std::ffi::OsStr::to_str)
         .expect("Failed to get file stem");
 
-    // Determine the output directory based on whether the output path is provided
+    // Determine the output directory
     let output_dir = match output_path {
         // Use the specified output path if provided
         Some(path) => PathBuf::from(path),
+        // Use the default output path in /tmp/output_xxxx/flame_svg
         None => {
-            // Get the parent directory of the input file
-            let parent_dir = input_file_path.parent()
-                .unwrap_or_else(|| std::path::Path::new("."));
-            // Get the grandparent directory of the input file (sibling of the parent directory)
-            let grandparent_dir = parent_dir.parent()
-                .unwrap_or_else(|| std::path::Path::new("."));
-            // Construct the default output directory path
-            grandparent_dir.join("flame_svg")
+            use chrono::Local;
+            let date = Local::now().format("%Y%m%d").to_string();
+            let default_output_dir = PathBuf::from("/tmp").join(format!("output_{}", date)).join("flame_svg");
+            default_output_dir
         }
     };
 
