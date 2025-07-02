@@ -1,7 +1,10 @@
 #!/bin/bash
 
+# 获取IP地址，默认为10.107.204.71
+IP_ADDRESS=${1:-10.107.204.71}
+
 # 获取起始端口号，默认为11490
-START_PORT=${1:-11490}
+START_PORT=${2:-11490}
 
 # 执行ps命令获取/opt/conda/bin/python进程信息
 echo "执行 ps 命令获取/opt/conda/bin/python进程信息..."
@@ -20,8 +23,20 @@ while IFS= read -r line; do
     # 提取PID（第2列）
     PID=$(echo "$line" | awk '{print $2}')
 
-    # 使用sed提取local-rank值
-    RANK=$(echo "$line" | sed -n 's/.*--local-rank=\([0-9]*\).*/\1/p')
+    # 尝试从环境变量中提取LOCAL_RANK（针对torchrun）
+    ENV_RANK=$(tr '\0' '\n' < /proc/$PID/environ 2>/dev/null | grep "^LOCAL_RANK=" | cut -d= -f2)
+    
+    # 尝试从命令行参数中提取local-rank（针对python -m torch.distributed.launch）
+    CMD_RANK=$(echo "$line" | sed -n 's/.*--local-rank=\([0-9]*\).*/\1/p')
+    
+    # 优先使用环境变量中的LOCAL_RANK
+    if [[ ! -z "$ENV_RANK" && "$ENV_RANK" =~ ^[0-9]+$ ]]; then
+        RANK=$ENV_RANK
+    elif [[ ! -z "$CMD_RANK" && "$CMD_RANK" =~ ^[0-9]+$ ]]; then
+        RANK=$CMD_RANK
+    else
+        RANK=""
+    fi
 
     # 只处理成功提取rank的行
     if [[ ! -z "$RANK" && "$RANK" =~ ^[0-9]+$ && ! -z "$PID" && "$PID" =~ ^[0-9]+$ ]]; then
@@ -49,7 +64,7 @@ FAILED=0
 
 for rank in "${SORTED_RANKS[@]}"; do
     PID=${RANK_PID_MAP[$rank]}
-    ADDRESS="10.107.204.71:$PORT"
+    ADDRESS="${IP_ADDRESS}:${PORT}"
 
     echo -n "配置 rank $rank (PID: $PID) 到地址: $ADDRESS ... "
 

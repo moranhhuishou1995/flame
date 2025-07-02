@@ -28,9 +28,24 @@ cargo build
 
 ## 5. 使用方式
 
-### 5.1 获取个节点堆栈的txt数据
+### 5.1 配置训练进程ip和端口
 
-在url_config文件夹下的urls.json文件中，配置各个节点需要拉取的堆栈信息的url地址
+为每个rank的pid进程号配置ip和端口，需指定当前节点的ip地址，默认起始端口号为11490
+
+```bash
+bash config_probing.sh 10.107.204.71
+```
+也可自己指定起始端口号
+
+```bash
+bash config_probing.sh 10.107.204.71 12345
+```
+![alt text](pics/image_config.png)
+
+
+### 5.2 获取个节点堆栈的txt数据
+
+在urls.json文件中，配置各个节点需要拉取的堆栈信息的url地址，需和5.1中的IP端口配置信息对应
 
 执行以下命令:
 
@@ -45,7 +60,7 @@ cargo build
 
 ![alt text](pics/image.png)
 
-### 5.2 获取指定节点堆栈的txt数据
+### 5.3 获取指定节点堆栈的txt数据
 
 无需配置urls.json文件，直接通过-r参数指定需要获取的rank编号的堆栈信息
 
@@ -54,7 +69,7 @@ cargo build
 ```
 ![alt text](pics/image-1.png)
 
-### 5.3 生成火焰图
+### 5.4 生成火焰图
 
 执行以下命令生成堆栈火焰图, -i参数为合并后的堆栈信息文件，是必须传入的参数:
 
@@ -70,7 +85,7 @@ cargo build
 
 ![alt text](pics/image-2.png)
 
-## 6. Output文件说明
+## 6. 相关文件说明
 
 - `urls.json` 为各个节点的url配置文件;
 - `merged_output.txt` 为合并后的堆栈信息;
