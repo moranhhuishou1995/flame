@@ -5,6 +5,7 @@ edition = "2024"
 authors = ["moranhuishou"]
 
 [dependencies]
+regex = "1.9"
 inferno = { version = "0.12.2", features = ["cli"] }
 reqwest = { version = "0.12.4", features = ["json"] }
 tokio = { version = "1", features = ["full"] }

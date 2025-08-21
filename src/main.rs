@@ -1,32 +1,37 @@
-use std::fs;
-use std::path::PathBuf;
-use chrono::Local;
-mod collector;
-mod process;
-mod draw_flame;
-mod command;
+use clap::Parser;
+use std::error::Error;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Get the current date
-    let date = Local::now().format("%Y%m%d").to_string();
-    // Build the output directory path in /tmp
-    let output_dir = PathBuf::from("/tmp").join(format!("output_{}", date));
+use crate::flame::flame_jsonstacks;
 
-    // Create the output_YYYYMMDD directory
-    if let Err(e) = fs::create_dir_all(&output_dir) {
-        panic!("Failed to create output directory: {}", e);
+mod flame;
+
+/// Call stack flame graph generation tool
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Path to input directory containing mergedstack_rankN.json files (required)
+    #[clap(short, long, value_parser)]
+    input_dir: String,
+
+    /// Path to output directory (optional)
+    #[clap(short, long, value_parser)]
+    output_dir: Option<String>,
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Parse command line arguments
+    let args = Args::parse();
+
+    println!("Input directory: {}", args.input_dir);
+    if let Some(output) = &args.output_dir {
+        println!("Output directory: {}", output);
+    } else {
+        println!("No output directory specified, will use default path");
     }
 
-    // Create subdirectories
-    let sub_dirs = ["merged_stack", "flame_svg", "url_config"];
-    for sub_dir in sub_dirs {
-        let sub_dir_path = output_dir.join(sub_dir);
-        if let Err(e) = fs::create_dir_all(&sub_dir_path) {
-            panic!("Failed to create {} directory: {}", sub_dir, e);
-        }
-    }
+    // Call flame graph generation interface
+    flame_jsonstacks(&args.input_dir, args.output_dir.as_deref())?;
 
-    command::run_cli().await?;
     Ok(())
 }
+    
