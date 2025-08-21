@@ -33,7 +33,7 @@ cargo build
 执行以下命令生成堆栈火焰图, -i参数为合并后的堆栈信息文件，是必须传入的参数:
 
 ```bash
-./probing-flame -i ./probing-flame -i /tmp/probing_log/output_20250821_0931/
+./probing-flame -i /tmp/probing_log/output_20250821_0931/
 ```
 ![alt text](pics/image.png)
 
