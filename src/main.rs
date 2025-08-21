@@ -3,8 +3,6 @@ use std::error::Error;
 
 use crate::flame::flame_jsonstacks;
 
-mod flame;
-
 /// Call stack flame graph generation tool
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
