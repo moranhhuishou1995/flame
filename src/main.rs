@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::error::Error;
 
+mod flame;
 use crate::flame::flame_jsonstacks;
 
 /// Call stack flame graph generation tool
