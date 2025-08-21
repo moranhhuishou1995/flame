@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::error::Error;
 use std::fs::{self, File};
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
 use inferno::flamegraph::{self, Options, Palette};
