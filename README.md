@@ -22,65 +22,27 @@
   
 ```bash
 git https://github.com/moranhhuishou1995/flame
+git checkout -b flame_jsonstack
 cd flame
 cargo build
 ```
 
 ## 5. 使用方式
-
-### 5.1 配置训练进程ip和端口
-
-为每个rank的pid进程号配置ip和端口，需指定当前节点的ip地址，默认起始端口号为11490
-
-```bash
-bash config_probing.sh 10.107.204.71
-```
-也可自己指定起始端口号
-
-```bash
-bash config_probing.sh 10.107.204.71 12345
-```
-![alt text](pics/image_config.png)
-
-
-### 5.2 获取个节点堆栈的txt数据
-
-在urls.json文件中，配置各个节点需要拉取的堆栈信息的url地址，需和5.1中的IP端口配置信息对应
-
-执行以下命令:
-
-```bash
-./probing-flame -f ~/flame/url_config/urls.json
-```
-执行成功后，会在相应文件加生成合并后的堆栈txt文件，也可通过-o参数指定堆栈txt文件的生成目录
-
-```bash
-./probing-flame -f ~/flame/url_config/urls.json -o ~/you_want_to_save
-```
-
-![alt text](pics/image.png)
-
-### 5.3 获取指定节点堆栈的txt数据
-
-无需配置urls.json文件，直接通过-r参数指定需要获取的rank编号的堆栈信息
-
-```bash
-./probing-flame -r 2:10.107.204.71:11492 -r 3:10.107.204.71:11493
-```
-![alt text](pics/image-1.png)
-
-### 5.4 生成火焰图
+### 5.1 生成火焰图
 
 执行以下命令生成堆栈火焰图, -i参数为合并后的堆栈信息文件，是必须传入的参数:
 
 ```bash
-./probing-flame -i /home/zj/wangqi/flame/output_20250623/merged_stack/merged_output.txt
+./probing-flame -i ./probing-flame -i /tmp/probing_log/output_20250821_0931/
 ```
+![alt text](pics/image.png)
 
+生成的火焰图效果如下
+![alt text](pics/image2.png)
 也可以通过-o参数指定输出的火焰图文件路径:
 
 ```bash
-./probing-flame -i /home/zj/wangqi/flame/output_20250623/merged_stack/merged_output.txt -o ~/you_want_to_save
+./probing-flame -i /tmp/probing_log/output_20250821_0931/ -o ~/you_want_to_save
 ```
 
 ![alt text](pics/image-2.png)
