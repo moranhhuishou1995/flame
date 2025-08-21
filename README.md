@@ -45,8 +45,6 @@ cargo build
 ./probing-flame -i /tmp/probing_log/output_20250821_0931/ -o ~/you_want_to_save
 ```
 
-![alt text](pics/image-2.png)
-
 ## 6. 相关文件说明
 
 - `urls.json` 为各个节点的url配置文件;
