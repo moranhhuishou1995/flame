@@ -45,8 +45,3 @@ cargo build
 ./probing-flame -i /tmp/probing_log/output_20250821_0931/ -o ~/you_want_to_save
 ```
 
-## 6. 相关文件说明
-
-- `urls.json` 为各个节点的url配置文件;
-- `merged_output.txt` 为合并后的堆栈信息;
-- `merged_output.svg` 为生成的火焰图;
